@@ -1,4 +1,5 @@
 from datetime import UTC, datetime
+from pathlib import Path
 
 import pytest
 
@@ -102,6 +103,14 @@ def test_aws_media_id_resolves_to_cloudfront(monkeypatch):
 
     assert resolved == "https://cdn.example.com/media/movie-night/master.m3u8"
     assert client_stream_url("abc123", {"stream_url": resolved}) == resolved
+
+
+def test_home_includes_cloudfront_demo_room():
+    home = Path("static/index.html").read_text()
+
+    assert "Try the demo" in home
+    assert "createRoom('big-buck-bunny')" in home
+    assert "Open this room link in a second tab" in home
 
 
 def test_aws_external_url_uses_proxy(monkeypatch):

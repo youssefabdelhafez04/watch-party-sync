@@ -40,6 +40,18 @@ html, body { height: 100%; background: #0d0d0d; color: #fff; font-family: -apple
 }
 #create-btn:hover:not(:disabled) { background: #c50b14; }
 #create-btn:disabled { background: #555; cursor: default; }
+#demo-actions { display: none; max-width: 520px; width: 100%; }
+#demo-btn {
+  width: 100%; background: rgba(255,255,255,.12); color: #fff;
+  border: 1px solid rgba(255,255,255,.28); padding: 13px 34px;
+  border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer;
+  transition: background .15s, border-color .15s;
+}
+#demo-btn:hover:not(:disabled) { background: rgba(255,255,255,.2); border-color: rgba(255,255,255,.5); }
+#demo-btn:disabled { opacity: .65; cursor: default; }
+#demo-hint { margin-top: 9px; color: #aaa; font-size: 13px; line-height: 1.45; }
+#demo-credit { margin-top: 5px; color: #777; font-size: 11px; }
+#demo-credit a { color: #999; }
 #share-card {
   display: none; flex-direction: column; gap: 12px;
   background: #141414; border: 1px solid #252525; border-radius: 10px;
@@ -464,6 +476,8 @@ html, body { background: #050505; }
   padding: 16px 34px;
   box-shadow: 0 18px 50px rgba(229,9,20,.28);
 }
+#demo-actions { max-width: 590px; }
+#demo-btn { border-radius: 6px; padding: 14px 34px; font-weight: 750; }
 #create-btn:hover:not(:disabled), #go-btn:hover { background: #f6121d; transform: translateY(-1px); }
 #ui {
   background:
@@ -919,6 +933,11 @@ html, body { background: #050505; }
   </div>
   <input id="url-input" type="text" placeholder="Paste stream URL here…" />
   <button id="create-btn" onclick="createRoom()">Create Watch Party</button>
+  <div id="demo-actions">
+    <button id="demo-btn" onclick="createRoom('big-buck-bunny')">Try the demo</button>
+    <p id="demo-hint">Open this room link in a second tab or send it to a friend to see playback stay in sync.</p>
+    <p id="demo-credit">Demo video: <a href="https://peach.blender.org/" target="_blank" rel="noreferrer">Big Buck Bunny</a> © Blender Foundation, CC BY 3.0.</p>
+  </div>
   <div id="share-card">
     <p>Send this link to your friend — they just open it in any browser:</p>
     <div id="share-row">
@@ -1050,14 +1069,16 @@ fetch('/api/config').then(r => r.json()).then(cfg => {
   _mediaBaseUrl = cfg.media_base_url || null;
   if (cfg.accepts_media_ids) {
     document.getElementById('url-input').placeholder = 'Enter an uploaded media ID (for example: movie-night)';
+    document.getElementById('demo-actions').style.display = 'block';
   }
 }).catch(() => {});
 
-async function createRoom() {
+async function createRoom(streamUrl = null) {
   const input = document.getElementById('url-input');
-  const url = input.value.trim();
+  const url = streamUrl || input.value.trim();
   if (!url) { input.focus(); return; }
-  const btn = document.getElementById('create-btn');
+  const btn = streamUrl ? document.getElementById('demo-btn') : document.getElementById('create-btn');
+  const idleText = streamUrl ? 'Try the demo' : 'Create Watch Party';
   btn.disabled = true; btn.textContent = 'Creating…';
   try {
     const res = await fetch('/api/create', {
@@ -1072,9 +1093,9 @@ async function createRoom() {
     const base = public_url || location.origin;
     document.getElementById('share-url').textContent = `${base}/watch/${room_id}`;
     document.getElementById('share-card').style.display = 'flex';
-    btn.textContent = 'Room created!';
+    btn.textContent = streamUrl ? 'Demo room created!' : 'Room created!';
   } catch (e) {
-    btn.disabled = false; btn.textContent = 'Create Watch Party';
+    btn.disabled = false; btn.textContent = idleText;
     alert('Could not create room:\n' + e.message);
   }
 }
