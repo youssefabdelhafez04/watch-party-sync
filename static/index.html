@@ -917,7 +917,7 @@ html, body { background: #050505; }
     Most video players: while the video is playing, right-click it → <em>Copy video address</em>.<br><br>
     Browser: press <code>F12</code> → Network tab → filter by <em>media</em> → right-click the video request → Copy link address.
   </div>
-  <input id="url-input" type="url" placeholder="Paste stream URL here…" />
+  <input id="url-input" type="text" placeholder="Paste stream URL here…" />
   <button id="create-btn" onclick="createRoom()">Create Watch Party</button>
   <div id="share-card">
     <p>Send this link to your friend — they just open it in any browser:</p>
@@ -1044,6 +1044,14 @@ if (watchMatch) {
 
 // ─── Home ─────────────────────────────────────────────
 let _createdId = null;
+let _mediaBaseUrl = null;
+
+fetch('/api/config').then(r => r.json()).then(cfg => {
+  _mediaBaseUrl = cfg.media_base_url || null;
+  if (cfg.accepts_media_ids) {
+    document.getElementById('url-input').placeholder = 'Enter an uploaded media ID (for example: movie-night)';
+  }
+}).catch(() => {});
 
 async function createRoom() {
   const input = document.getElementById('url-input');
@@ -1086,7 +1094,13 @@ let _transcodeDone = false, _progressTimer = null;
 let _auth = null;            // authoritative timeline: {playing, position, ts} in SERVER time
 let _clockOffset = 0;        // serverTime ≈ clientTime + _clockOffset (seconds)
 let _offsetSamples = [];     // recent {offset, rtt} ping samples
-let _pingTimer = null, _correctTimer = null, _syncReset = null;
+let _pingTimer = null, _correctTimer = null, _syncReset = null, _measurementTimer = null;
+const _clientId = (() => {
+  const key = 'watchparty-client-id';
+  let id = sessionStorage.getItem(key);
+  if (!id) { id = crypto.randomUUID(); sessionStorage.setItem(key, id); }
+  return id;
+})();
 
 async function initWatch(roomId) {
   const [roomRes, cfgRes] = await Promise.all([
@@ -1100,6 +1114,7 @@ async function initWatch(roomId) {
   const info = await roomRes.json();
   const cfg  = await cfgRes.json();
   _publicUrl = cfg.public_url || null;
+  _mediaBaseUrl = cfg.media_base_url || null;
   _duration  = info.duration || 0;
   _transcodeDone = info.transcode_done || false;
   setEpisodeTitle(info.title || 'Watch Party');
@@ -1199,8 +1214,12 @@ function onWrapClick() {
 function connectWS(roomId, video) {
   const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
   _ws = new WebSocket(`${proto}//${location.host}/ws/${roomId}`);
-  _ws.onopen  = () => { setConn('Synced', 'green'); startClockSync(); };
-  _ws.onclose = () => { setConn('Reconnecting…', ''); clearInterval(_pingTimer); setTimeout(() => connectWS(roomId, video), 2500); };
+  _ws.onopen  = () => { setConn('Synced', 'green'); startClockSync(); startMeasurementReporting(video); };
+  _ws.onclose = () => {
+    setConn('Reconnecting…', '');
+    clearInterval(_pingTimer); clearInterval(_measurementTimer);
+    setTimeout(() => connectWS(roomId, video), 2500);
+  };
   _ws.onmessage = ({data}) => applyMsg(video, JSON.parse(data));
 }
 
@@ -1225,6 +1244,19 @@ function handlePong(msg) {
   if (_offsetSamples.length > 12) _offsetSamples.shift();
   // The lowest-RTT sample is the least jitter-corrupted estimate.
   _clockOffset = _offsetSamples.reduce((a, b) => (b.rtt < a.rtt ? b : a)).offset;
+}
+
+function startMeasurementReporting(video) {
+  clearInterval(_measurementTimer);
+  const report = () => sendWS({
+    type: 'measurement',
+    client_id: _clientId,
+    position: video.currentTime || 0,
+    corrected_time: serverNow(),
+    playing: !video.paused && !video.ended,
+  });
+  report();
+  _measurementTimer = setInterval(report, 2000);
 }
 
 // Where the authoritative timeline says we should be, right now.
@@ -1324,7 +1356,9 @@ function submitEpisodeUrl() {
   const input = document.getElementById('episode-url');
   const url = input.value.trim();
   if (!url) { input.focus(); return; }
-  try { new URL(url); } catch (_) { showToast('Paste a full stream URL'); input.focus(); return; }
+  if (!_mediaBaseUrl) {
+    try { new URL(url); } catch (_) { showToast('Paste a full stream URL'); input.focus(); return; }
+  }
   sendWS({type: 'change_video', stream_url: url});
   closeEpisodeModal();
   showToast('Switching episode...');

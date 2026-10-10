@@ -3,5 +3,20 @@ __pycache__/
 *.pyc
 *.pyo
 .DS_Store
+.aws-stack.env
+.env
+.env.*
+!.env.aws.example
+*.pem
+*.key
+# Local source videos and generated HLS belong in object storage, not Git.
+media/
+uploads/
+hls/
+*.mp4
+*.mov
+*.mkv
+*.avi
+*.webm
 /tmp/
 wp_*/

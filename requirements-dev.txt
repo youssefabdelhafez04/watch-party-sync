@@ -1,0 +1,4 @@
+-r requirements.txt
+pytest>=8,<10
+locust>=2.31,<3
+websocket-client>=1.8,<2
