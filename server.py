@@ -35,6 +35,7 @@ DIRECT_MEDIA = os.getenv("WATCHPARTY_DIRECT_MEDIA", "0") == "1"
 PUBLIC_URL = os.getenv("WATCHPARTY_PUBLIC_URL", "").rstrip("/") or None
 TELEMETRY_DB_PATH = os.getenv("WATCHPARTY_TELEMETRY_DB")
 BLOCK_PRIVATE_URLS = os.getenv("WATCHPARTY_BLOCK_PRIVATE_URLS", "0") == "1"
+PRELOADED_ONLY = os.getenv("WATCHPARTY_PRELOADED_ONLY", "0") == "1"
 MEASUREMENT_MAX_AGE = 10.0
 DRIFT_LOG_INTERVAL = int(os.getenv("DRIFT_LOG_INTERVAL", "20"))
 STEADY_STATE_DELAY_SECONDS = float(os.getenv("DRIFT_STEADY_STATE_DELAY_SECONDS", "3"))
@@ -137,6 +138,10 @@ def build_hls_master_playlist(renditions=RENDITIONS) -> str:
 def resolve_stream_url(value: str) -> str:
     """Resolve a short AWS media ID while leaving local/direct URLs unchanged."""
     value = value.strip()
+    if PRELOADED_ONLY and value.startswith(("http://", "https://")):
+        raise ValueError("Public demo accepts preloaded media IDs only; pasted links are disabled.")
+    if PRELOADED_ONLY and not MEDIA_BASE_URL:
+        raise ValueError("Preloaded-only mode requires a media base URL.")
     if MEDIA_BASE_URL and not value.startswith(("http://", "https://")):
         if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}", value):
             raise ValueError("Media IDs may contain only letters, numbers, dots, dashes, and underscores.")
@@ -476,6 +481,7 @@ async def get_config():
         "public_url": _public_url,
         "media_base_url": MEDIA_BASE_URL or None,
         "accepts_media_ids": bool(MEDIA_BASE_URL),
+        "preloaded_only": PRELOADED_ONLY,
     }
 
 
@@ -659,6 +665,11 @@ FORWARD = {"range", "accept", "user-agent"}
 
 @app.api_route("/stream/{room_id}", methods=["GET", "HEAD"])
 async def proxy_stream(room_id: str, request: Request, url: Optional[str] = Query(None)):
+    if PRELOADED_ONLY:
+        return Response(
+            status_code=403,
+            content=b"Public stream proxy is disabled; preloaded media only.",
+        )
     r = rooms.get(room_id)
     if not r:
         return Response(status_code=404)

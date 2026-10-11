@@ -2,7 +2,9 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
+from fastapi.testclient import TestClient
 
+import server
 from server import (
     PlaybackEvent,
     build_ffmpeg_command,
@@ -111,6 +113,8 @@ def test_home_includes_cloudfront_demo_room():
     assert "Try the demo" in home
     assert "createRoom('big-buck-bunny')" in home
     assert "Open this room link in a second tab" in home
+    assert "Public demo plays preloaded content only." in home
+    assert "Big Buck Bunny</a> © Blender Foundation, CC BY 3.0." in home
 
 
 def test_aws_external_url_uses_proxy(monkeypatch):
@@ -120,6 +124,46 @@ def test_aws_external_url_uses_proxy(monkeypatch):
     assert client_stream_url(
         "abc123", {"stream_url": "https://video.example.com/movie.m3u8"}
     ) == "/stream/abc123?v=1"
+
+
+def test_preloaded_only_mode_rejects_external_urls(monkeypatch):
+    monkeypatch.setattr("server.MEDIA_BASE_URL", "https://cdn.example.com/media")
+    monkeypatch.setattr("server.PRELOADED_ONLY", True)
+
+    with pytest.raises(ValueError, match="preloaded media IDs only"):
+        resolve_stream_url("https://video.example.com/movie.m3u8")
+
+
+def test_preloaded_only_mode_accepts_uploaded_media_id(monkeypatch):
+    monkeypatch.setattr("server.MEDIA_BASE_URL", "https://cdn.example.com/media")
+    monkeypatch.setattr("server.PRELOADED_ONLY", True)
+
+    assert resolve_stream_url("movie-night") == "https://cdn.example.com/media/movie-night/master.m3u8"
+
+
+def test_preloaded_only_mode_disables_stream_proxy(monkeypatch):
+    monkeypatch.setattr("server.PRELOADED_ONLY", True)
+
+    response = TestClient(server.app).get("/stream/unused")
+
+    assert response.status_code == 403
+    assert "preloaded media only" in response.text
+
+
+def test_local_mode_still_creates_room_from_pasted_url(monkeypatch):
+    monkeypatch.setattr("server.PRELOADED_ONLY", False)
+    monkeypatch.setattr("server.MEDIA_BASE_URL", "")
+    monkeypatch.setattr("server.FFMPEG", None)
+
+    response = TestClient(server.app).post(
+        "/api/create", json={"stream_url": "https://video.example.com/movie.mp4"}
+    )
+
+    assert response.status_code == 200
+    room_id = response.json()["room_id"]
+    assert server.rooms[room_id]["stream_url"] == "https://video.example.com/movie.mp4"
+    assert client_stream_url(room_id, server.rooms[room_id]).startswith(f"/stream/{room_id}")
+    server.rooms.pop(room_id, None)
 
 
 def test_aws_media_id_rejects_path_traversal(monkeypatch):

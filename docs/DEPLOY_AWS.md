@@ -74,8 +74,9 @@ The script creates 360p, 720p, and 1080p HLS renditions in a temporary directory
 | `WATCHPARTY_DIRECT_MEDIA` | `0` | unset |
 | `WATCHPARTY_MEDIA_BASE_URL` | unset | CloudFront `/media` URL |
 | `WATCHPARTY_PUBLIC_URL` | unset or Quick Tunnel | `https://APP_DOMAIN` |
+| `WATCHPARTY_PRELOADED_ONLY` | `0` | `1` |
 
-In AWS mode, media IDs expand to CloudFront URLs. Pasted `http://` or `https://` media links retain the `/stream` proxy flow, so sources without browser CORS headers can work, but they must already use browser-compatible codecs because AWS intentionally has no FFmpeg. Authenticated, DRM-protected, and webpage URLs are unsupported. Proxy mode rejects private, loopback, link-local, reserved, and non-HTTP destinations and revalidates redirects.
+In AWS mode, media IDs expand to CloudFront URLs. The public deployment enables `WATCHPARTY_PRELOADED_ONLY=1`, so it accepts only content uploaded with `scripts/transcode_upload.sh`; pasted URLs and the `/stream` proxy are disabled. Local mode keeps paste-a-link and proxy behavior unchanged. Authenticated, DRM-protected, and webpage URLs are unsupported.
 
 ## Persistent usage summary
 

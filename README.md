@@ -47,6 +47,8 @@ python -m uvicorn server:app --host 127.0.0.1 --port 8000
 
 Open <http://localhost:8000>, paste a direct video or stream URL, create a room, and share its link. The optional `python server.py` entry point also attempts a Cloudflare Quick Tunnel when `cloudflared` is installed.
 
+The public demo is intentionally limited to preloaded licensed content uploaded through `scripts/transcode_upload.sh`; public paste-a-link and `/stream` proxy access are disabled. The included demo is **Big Buck Bunny © Blender Foundation, CC BY 3.0.** Local mode retains the original paste-a-link and stream-proxy workflow.
+
 The encoder defaults to VideoToolbox on macOS and `libx264` elsewhere. Override it with `FFMPEG_VIDEO_ENCODER`; tune software encoding with `FFMPEG_PRESET`. Each room creates 360p, 720p, and 1080p HLS renditions with AAC audio and three-second segments.
 
 ## Test and reproduce

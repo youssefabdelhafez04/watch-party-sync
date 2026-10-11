@@ -40,6 +40,7 @@ docker run -d --name watchparty-app --restart unless-stopped --network watchpart
   --network-alias app \
   -e WATCHPARTY_DISABLE_TRANSCODING=1 \
   -e WATCHPARTY_BLOCK_PRIVATE_URLS=1 \
+  -e WATCHPARTY_PRELOADED_ONLY=1 \
   -e WATCHPARTY_TELEMETRY_DB=/app/data/telemetry.sqlite3 \
   -e "WATCHPARTY_PUBLIC_URL=https://$APP_DOMAIN" \
   -e "WATCHPARTY_MEDIA_BASE_URL=https://$CLOUDFRONT_DOMAIN/media" \

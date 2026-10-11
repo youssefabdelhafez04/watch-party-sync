@@ -931,6 +931,7 @@ html, body { background: #050505; }
     Most video players: while the video is playing, right-click it → <em>Copy video address</em>.<br><br>
     Browser: press <code>F12</code> → Network tab → filter by <em>media</em> → right-click the video request → Copy link address.
   </div>
+  <p id="public-content-note" style="display:none">Public demo plays preloaded content only.</p>
   <input id="url-input" type="text" placeholder="Paste stream URL here…" />
   <button id="create-btn" onclick="createRoom()">Create Watch Party</button>
   <div id="demo-actions">
@@ -1067,7 +1068,13 @@ let _mediaBaseUrl = null;
 
 fetch('/api/config').then(r => r.json()).then(cfg => {
   _mediaBaseUrl = cfg.media_base_url || null;
-  if (cfg.accepts_media_ids) {
+  if (cfg.preloaded_only) {
+    document.querySelector('#home .tip').style.display = 'none';
+    document.getElementById('url-input').style.display = 'none';
+    document.getElementById('create-btn').style.display = 'none';
+    document.getElementById('public-content-note').style.display = 'block';
+    document.getElementById('demo-actions').style.display = 'block';
+  } else if (cfg.accepts_media_ids) {
     document.getElementById('url-input').placeholder = 'Enter an uploaded media ID (for example: movie-night)';
     document.getElementById('demo-actions').style.display = 'block';
   }
