@@ -925,7 +925,7 @@ html, body { background: #050505; }
 <div id="home">
   <div class="brand-mark">Watch Party</div>
   <h1>Watch together. Stay synced.</h1>
-  <p>Paste a stream link, create a room, and share a polished browser player with Netflix-style controls.</p>
+  <p id="home-summary">Paste a stream link, create a room, and share a polished browser player with Netflix-style controls.</p>
   <div class="tip">
     <strong>How to get a stream URL</strong>
     Most video players: while the video is playing, right-click it → <em>Copy video address</em>.<br><br>
@@ -1069,6 +1069,7 @@ let _mediaBaseUrl = null;
 fetch('/api/config').then(r => r.json()).then(cfg => {
   _mediaBaseUrl = cfg.media_base_url || null;
   if (cfg.preloaded_only) {
+    document.getElementById('home-summary').style.display = 'none';
     document.querySelector('#home .tip').style.display = 'none';
     document.getElementById('url-input').style.display = 'none';
     document.getElementById('create-btn').style.display = 'none';
